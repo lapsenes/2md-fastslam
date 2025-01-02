@@ -12,8 +12,8 @@ def main():
     # Initialize robot with random position
     robot = Robot(env)
     
-    # Initialize particles
-    particles = [Particle(env) for _ in range(10)]
+    # Initialize particles near robot's position
+    particles = [Particle(env, robot.x, robot.y) for _ in range(25)]
     
     print("\nUse arrow keys to move the robot.")
     print("Close the window to exit.")

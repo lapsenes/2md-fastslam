@@ -2,6 +2,7 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import key_press_handler
+from particle import Particle  
 
 class Environment:
     def __init__(self, size, num_objects):
@@ -54,8 +55,11 @@ class Environment:
             if event.key.lower() == 'm':  # 'M' key for measurement
                 measurements = robot.measure_environment(self)
                 if particles:
+                    # Let particles process measurements
                     for particle in particles:
                         particle.register_measurement(measurements)
+                    # Fix: Use proper class name Particle instead of particle
+                    Particle.resample_particles(particles)
                 self.update_visualization(robot, particles)
             elif event.key.lower() in key_mapping:
                 direction = key_mapping[event.key.lower()]

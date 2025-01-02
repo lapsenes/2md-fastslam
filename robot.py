@@ -66,6 +66,8 @@ class Robot:
         """Measure distance to nearest obstacle edges"""
         current_x = self.x
         current_y = self.y
+        rounded_x = int(round(current_x))
+        rounded_y = int(round(current_y))
         
         # Reset measurements
         self.measurements = {
@@ -76,43 +78,47 @@ class Robot:
         }
         
         # Up (decreasing y)
-        for y in range(int(current_y)-1, -1, -1):
-            if env.grid[y, int(round(current_x))] == 1:
-                distance = current_y - (y + 0.5)
-                self.measurements['Up'].update({
-                    'distance': distance,
-                    'obstacle': (int(round(current_x)), y)
-                })
+        for y in range(rounded_y, -1, -1):  # Start from current rounded position
+            if env.grid[y, rounded_x] == 1:
+                distance = current_y - y - 0.5  # Distance to edge
+                if distance > 0:  # Only record if distance is positive
+                    self.measurements['Up'].update({
+                        'distance': distance,
+                        'obstacle': (rounded_x, y)
+                    })
                 break
         
         # Down (increasing y)
-        for y in range(int(current_y)+1, env.size):
-            if env.grid[y, int(round(current_x))] == 1:
+        for y in range(rounded_y, env.size):  # Start from current rounded position
+            if env.grid[y, rounded_x] == 1:
                 distance = y - current_y - 0.5
-                self.measurements['Down'].update({
-                    'distance': distance,
-                    'obstacle': (int(round(current_x)), y)
-                })
+                if distance > 0:
+                    self.measurements['Down'].update({
+                        'distance': distance,
+                        'obstacle': (rounded_x, y)
+                    })
                 break
         
         # Left (decreasing x)
-        for x in range(int(current_x)-1, -1, -1):
-            if env.grid[int(round(current_y)), x] == 1:
-                distance = current_x - (x + 0.5)
-                self.measurements['Left'].update({
-                    'distance': distance,
-                    'obstacle': (x, int(round(current_y)))
-                })
+        for x in range(rounded_x, -1, -1):  # Start from current rounded position
+            if env.grid[rounded_y, x] == 1:
+                distance = current_x - x - 0.5
+                if distance > 0:
+                    self.measurements['Left'].update({
+                        'distance': distance,
+                        'obstacle': (x, rounded_y)
+                    })
                 break
         
         # Right (increasing x)
-        for x in range(int(current_x)+1, env.size):
-            if env.grid[int(round(current_y)), x] == 1:
+        for x in range(rounded_x, env.size):  # Start from current rounded position
+            if env.grid[rounded_y, x] == 1:
                 distance = x - current_x - 0.5
-                self.measurements['Right'].update({
-                    'distance': distance,
-                    'obstacle': (x, int(round(current_y)))
-                })
+                if distance > 0:
+                    self.measurements['Right'].update({
+                        'distance': distance,
+                        'obstacle': (x, rounded_y)
+                    })
                 break
         
         print("\nMeasurements:")
