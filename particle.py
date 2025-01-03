@@ -57,7 +57,7 @@ class Particle:
         elif direction == 'Down':
             return (self.x, self.y + distance)
         elif direction == 'Left':
-            return (self.x - distance, self.y)  # Fixed: Now returns tuple instead of single value
+            return (self.x - distance, self.y)
         elif direction == 'Right':
             return (self.x + distance, self.y)
 
@@ -81,11 +81,11 @@ class Particle:
         S_y = prev_Q[1] + current_Q[1]
         return (S_x, S_y)
 
-    def calculate_kalman_gain(self, prev_Q, current_Q):
+    def calculate_kalman_gain(self, S, prev_Q, current_Q):
         """Calculate Kalman gain K as ratio of previous to current uncertainty"""
-        # Avoid division by zero
-        K_x = prev_Q[0] / current_Q[0] if current_Q[0] != 0 else 0
-        K_y = prev_Q[1] / current_Q[1] if current_Q[1] != 0 else 0
+
+        K_x = prev_Q[0] * 1/(S[0]) 
+        K_y = prev_Q[1] * 1/(S[1]) 
         return (K_x, K_y)
 
     def calculate_updated_position(self, old_pos, Y, K):
@@ -96,26 +96,19 @@ class Particle:
 
     def calculate_weight(self, Y, S):
         """Calculate particle weight using FastSLAM weight formula"""
-        # Convert tuples to individual components
-        Y_x, Y_y = Y
-        S_x, S_y = S
+        Y = np.array(Y)
+        S = np.diag(S)  # Convert S to a 2x2 diagonal matrix
         
-        # Calculate for each dimension
-        try:
-            # Calculate determinant term: 2π|S|^(1/2)
-            det_term = abs(2 * math.pi * S_x * S_y) ** 0.5
-            
-            # Calculate exponent term: -1/2 * Y^T * S^-1 * Y
-            exp_term_x = -0.5 * Y_x * (1/S_x) * Y_x
-            exp_term_y = -0.5 * Y_y * (1/S_y) * Y_y
-            exp_term = exp_term_x + exp_term_y
-            
-            # Combine terms
-            weight = (1 / det_term) * math.exp(exp_term)
-            
-            return weight
-        except (ZeroDivisionError, ValueError):
-            return 0.0
+        det_S = np.linalg.det(S)
+        inv_S = np.linalg.inv(S)
+        
+        # Calculate exponent term
+        exp_term = -0.5 * np.dot(np.dot(Y.T, inv_S), Y)
+        # Calculate weight
+        weight = (1 / (2 * math.pi * math.sqrt(det_S))) * math.exp(exp_term)
+        
+        return weight
+
 
     def register_single_measurement(self, direction, measurement_data):
         """Process a single direction measurement"""
@@ -129,18 +122,29 @@ class Particle:
                 Y = self.calculate_measurement_difference(landmark_id, expected_pos)
                 prev_Q = self.landmarks[landmark_id]['Q']
                 S = self.calculate_S(prev_Q, current_Q)
-                K = self.calculate_kalman_gain(prev_Q, current_Q)
+                K = self.calculate_kalman_gain(S, prev_Q, current_Q)
                 
                 # Calculate updated position and weight
                 old_pos = self.landmarks[landmark_id]['expected_position']
                 updated_pos = self.calculate_updated_position(old_pos, Y, K)
                 self.weight = self.calculate_weight(Y, S)
                 
+                # Update Q
+                updated_Q_x = (1 - K[0]) * prev_Q[0]
+                updated_Q_y = (1 - K[1]) * prev_Q[1]
+                updated_Q = (updated_Q_x, updated_Q_y)
+                
                 # Update landmark data
                 self.landmarks[landmark_id].update({
                     'expected_position': updated_pos,
-                    'Q': current_Q
+                    'Q': updated_Q
                 })
+                
+                # Debug print statements
+                print(f"Particle at ({self.x:.2f}, {self.y:.2f}) updated landmark {landmark_id}:")
+                print(f"  Direction: {direction}")
+                print(f"  Measurement difference Y: {Y}")
+                print(f"  Calculated weight: {self.weight:.6f}")
             else:
                 # Store new landmark
                 self.landmarks[landmark_id] = {
@@ -151,51 +155,11 @@ class Particle:
                 }
                 self.weight = 1.0  # New landmarks don't affect weight
 
-    def register_measurement(self, robot_measurements):
-        """Deprecated: Use register_single_measurement instead"""
-        print("Warning: Using deprecated method. Use register_single_measurement instead.")
-        # Keep old method for compatibility but mark as deprecated
-        for direction, data in robot_measurements.items():
-            if data['distance'] > 0 and data['obstacle']:
-                landmark_id = data['obstacle']
-                expected_pos = self.calculate_expected_position(direction, data['distance'])
-                current_Q = self.calculate_Q(data['distance'])
-                
-                if landmark_id in self.landmarks:
-                    # Calculate all Kalman filter components
-                    Y = self.calculate_measurement_difference(landmark_id, expected_pos)
-                    prev_Q = self.landmarks[landmark_id]['Q']
-                    S = self.calculate_S(prev_Q, current_Q)
-                    K = self.calculate_kalman_gain(prev_Q, current_Q)
-                    
-                    # Calculate updated position and weight
-                    old_pos = self.landmarks[landmark_id]['expected_position']
-                    updated_pos = self.calculate_updated_position(old_pos, Y, K)
-                    self.weight = self.calculate_weight(Y, S)
-                    
-                    # Update landmark data
-                    self.landmarks[landmark_id].update({
-                        'expected_position': updated_pos,
-                        'Q': current_Q
-                    })
-                    
-                    print(f"Particle at ({self.x:.2f}, {self.y:.2f}) updated:")
-                    print(f"  Landmark: {landmark_id}")
-                    print(f"  New position: {updated_pos}")
-                    print(f"  New weight: {self.weight:.6f}")
-                else:
-                    # Store new landmark
-                    self.landmarks[landmark_id] = {
-                        'distance': data['distance'],
-                        'direction': direction,
-                        'expected_position': expected_pos,
-                        'Q': current_Q
-                    }
-                    print(f"Particle at ({self.x:.2f}, {self.y:.2f}) registered new landmark {landmark_id}:")
-                    print(f"  Direction: {direction}")
-                    print(f"  Distance: {data['distance']:.2f}")
-                    print(f"  Expected position: {expected_pos}")
-                    print(f"  Initial uncertainty Q: {current_Q}")
+                # Debug print statements for new landmark
+                print(f"Particle at ({self.x:.2f}, {self.y:.2f}) registered new landmark {landmark_id}:")
+                print(f"  Direction: {direction}")
+                print(f"  Measurement difference Y: (0.0, 0.0)")
+                print(f"  Calculated weight: {self.weight:.6f}")
 
     def copy_from(self, other_particle):
         """Copy all attributes from another particle"""
@@ -213,7 +177,7 @@ class Particle:
         N = len(particles)
         # Calculate total weight and step size
         total_weight = sum(p.weight for p in particles)
-        if total_weight == 0:
+        if total_weight == 0 or total_weight == N:
             return particles
             
         step = total_weight / N
