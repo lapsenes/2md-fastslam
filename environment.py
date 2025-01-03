@@ -55,11 +55,14 @@ class Environment:
             if event.key.lower() == 'm':  # 'M' key for measurement
                 measurements = robot.measure_environment(self)
                 if particles:
-                    # Let particles process measurements
-                    for particle in particles:
-                        particle.register_measurement(measurements)
-                    # Fix: Use proper class name Particle instead of particle
-                    Particle.resample_particles(particles)
+                    # Process each direction's measurement separately for all particles
+                    for direction in ['Up', 'Down', 'Left', 'Right']:
+                        if measurements[direction]['distance'] > 0:
+                            # Apply this direction's measurement to all particles
+                            for particle in particles:
+                                particle.register_single_measurement(direction, measurements[direction])
+                            # Resample after each direction's measurement
+                            Particle.resample_particles(particles)
                 self.update_visualization(robot, particles)
             elif event.key.lower() in key_mapping:
                 direction = key_mapping[event.key.lower()]

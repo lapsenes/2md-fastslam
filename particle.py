@@ -117,8 +117,44 @@ class Particle:
         except (ZeroDivisionError, ValueError):
             return 0.0
 
+    def register_single_measurement(self, direction, measurement_data):
+        """Process a single direction measurement"""
+        if measurement_data['distance'] > 0 and measurement_data['obstacle']:
+            landmark_id = measurement_data['obstacle']
+            expected_pos = self.calculate_expected_position(direction, measurement_data['distance'])
+            current_Q = self.calculate_Q(measurement_data['distance'])
+            
+            if landmark_id in self.landmarks:
+                # Calculate all Kalman filter components
+                Y = self.calculate_measurement_difference(landmark_id, expected_pos)
+                prev_Q = self.landmarks[landmark_id]['Q']
+                S = self.calculate_S(prev_Q, current_Q)
+                K = self.calculate_kalman_gain(prev_Q, current_Q)
+                
+                # Calculate updated position and weight
+                old_pos = self.landmarks[landmark_id]['expected_position']
+                updated_pos = self.calculate_updated_position(old_pos, Y, K)
+                self.weight = self.calculate_weight(Y, S)
+                
+                # Update landmark data
+                self.landmarks[landmark_id].update({
+                    'expected_position': updated_pos,
+                    'Q': current_Q
+                })
+            else:
+                # Store new landmark
+                self.landmarks[landmark_id] = {
+                    'distance': measurement_data['distance'],
+                    'direction': direction,
+                    'expected_position': expected_pos,
+                    'Q': current_Q
+                }
+                self.weight = 1.0  # New landmarks don't affect weight
+
     def register_measurement(self, robot_measurements):
-        """Store robot's measurements and calculate differences/uncertainties"""
+        """Deprecated: Use register_single_measurement instead"""
+        print("Warning: Using deprecated method. Use register_single_measurement instead.")
+        # Keep old method for compatibility but mark as deprecated
         for direction, data in robot_measurements.items():
             if data['distance'] > 0 and data['obstacle']:
                 landmark_id = data['obstacle']
