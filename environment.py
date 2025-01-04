@@ -9,7 +9,7 @@ class Environment:
         self.size = size
         self.grid = np.zeros((size, size), dtype=np.int32)
         self._add_frame()
-        self._add_random_objects(num_objects)
+        self._add_hardcoded_objects()  # Use hard-coded objects instead of random ones
         # Create figure only once during initialization
         plt.ion()  # Turn on interactive mode
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
@@ -20,10 +20,15 @@ class Environment:
         self.grid[:, 0] = 1
         self.grid[:, -1] = 1
 
-    def _add_random_objects(self, num_objects):
-        inner_positions = random.sample(range(self.size * self.size), num_objects)
-        for pos in inner_positions:
-            row, col = divmod(pos, self.size)
+    def _add_hardcoded_objects(self):
+        """Add hard-coded objects to the grid"""
+        hardcoded_positions = [
+            (2, 2), (2, 3), (2, 4),
+            (3, 2), (4, 2),
+            (6, 6), (6, 7), (6, 8),
+            (7, 6), (8, 6)
+        ]
+        for row, col in hardcoded_positions:
             self.grid[row, col] = 1
 
     def is_valid_position(self, x, y):
@@ -57,7 +62,7 @@ class Environment:
                 if particles:
                     # Process each direction's measurement separately for all particles
                     for direction in ['Up', 'Down', 'Left', 'Right']:
-                        if measurements[direction]['distance'] > 0:
+                        if measurements[direction]['distance']:
                             # Apply this direction's measurement to all particles
                             for particle in particles:
                                 particle.register_single_measurement(direction, measurements[direction])

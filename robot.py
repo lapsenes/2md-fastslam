@@ -40,24 +40,15 @@ class Robot:
             return False
             
         dx, dy = self.movement_deltas[direction]
-        noise_x, noise_y = generate_movement_noise()  
         
-        new_x = self.x + dx + noise_x
-        new_y = self.y + dy + noise_y
-        
-        if env.is_valid_position(new_x, new_y):
-            self.x = new_x
-            self.y = new_y
-            self.show_measurements = False  # Hide measurements after movement
-            return True
-        
-        # Try without noise if noisy movement fails
         new_x = self.x + dx
         new_y = self.y + dy
+        
         if env.is_valid_position(new_x, new_y):
             self.x = new_x
             self.y = new_y
             self.show_measurements = False  # Hide measurements after movement
+            print(f"Robot moved to ({self.x:.2f}, {self.y:.2f}) without noise")
             return True
             
         return False

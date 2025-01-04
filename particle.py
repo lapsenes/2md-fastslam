@@ -7,10 +7,10 @@ class Particle:
     def __init__(self, env, robot_x=None, robot_y=None):
         # Initialize position near robot if provided, otherwise random
         if robot_x is not None and robot_y is not None:
-            # Generate position within ±3.0 of robot's position
+            # Generate position within ±5.0 of robot's position
             while True:
-                offset_x = random.uniform(-3.0, 3.0)
-                offset_y = random.uniform(-3.0, 3.0)
+                offset_x = random.uniform(-5.0, 5.0)
+                offset_y = random.uniform(-5.0, 5.0)
                 self.x = robot_x + offset_x
                 self.y = robot_y + offset_y
                 # Ensure position is within grid bounds and valid
@@ -43,12 +43,16 @@ class Particle:
         dx, dy = self.movement_deltas[direction]
         noise_x, noise_y = generate_movement_noise()  
         
+        old_x, old_y = self.x, self.y
         self.x += dx + noise_x
         self.y += dy + noise_y
         
         # Keep particles within grid bounds
         self.x = max(0, min(self.x, env.size - 1))
         self.y = max(0, min(self.y, env.size - 1))
+        
+        # Debug print statement
+        print(f"Particle moved from ({old_x:.2f}, {old_y:.2f}) to ({self.x:.2f}, {self.y:.2f}) with noise ({noise_x:.2f}, {noise_y:.2f})")
 
     def calculate_expected_position(self, direction, distance):
         """Calculate expected obstacle position based on particle's position and measurement"""
@@ -83,7 +87,6 @@ class Particle:
 
     def calculate_kalman_gain(self, S, prev_Q, current_Q):
         """Calculate Kalman gain K as ratio of previous to current uncertainty"""
-
         K_x = prev_Q[0] * 1/(S[0]) 
         K_y = prev_Q[1] * 1/(S[1]) 
         return (K_x, K_y)
@@ -95,7 +98,7 @@ class Particle:
         return (new_x, new_y)
 
     def calculate_weight(self, Y, S):
-        """Calculate particle weight using FastSLAM weight formula"""
+        """Calculate particle weight using a Gaussian function"""
         Y = np.array(Y)
         S = np.diag(S)  # Convert S to a 2x2 diagonal matrix
         
@@ -108,7 +111,6 @@ class Particle:
         weight = (1 / (2 * math.pi * math.sqrt(det_S))) * math.exp(exp_term)
         
         return weight
-
 
     def register_single_measurement(self, direction, measurement_data):
         """Process a single direction measurement"""
@@ -145,6 +147,8 @@ class Particle:
                 print(f"  Direction: {direction}")
                 print(f"  Measurement difference Y: {Y}")
                 print(f"  Calculated weight: {self.weight:.6f}")
+                print(f"  Expected position: {expected_pos}")
+                print(f"  Distance to obstacle: {measurement_data['distance']}")
             else:
                 # Store new landmark
                 self.landmarks[landmark_id] = {
@@ -160,6 +164,8 @@ class Particle:
                 print(f"  Direction: {direction}")
                 print(f"  Measurement difference Y: (0.0, 0.0)")
                 print(f"  Calculated weight: {self.weight:.6f}")
+                print(f"  Expected position: {expected_pos}")
+                print(f"  Distance to obstacle: {measurement_data['distance']}")
 
     def copy_from(self, other_particle):
         """Copy all attributes from another particle"""
